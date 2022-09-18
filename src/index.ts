@@ -28,7 +28,30 @@ apiRouter.all(
       return res.status(400).json({ ok: false, error: 'Missing text parameter' })
     }
 
-    const voiceIterator = getVoiceChunks(text, (voice ?? 'es-ES-AlvaroNeural') as Parameters<typeof getVoiceChunks>[1])
+    const id = Math.random()
+    const voiceIterator = getVoiceChunks(
+      text,
+      (voice ?? 'es-ES-AlvaroNeural') as Parameters<typeof getVoiceChunks>[1],
+      {
+        throttling(ms) {
+          console.info(`[${id}] Throttling (${ms}ms)`)
+        },
+        progress(progress, eta) {
+          const secondsRemaining = eta / 1000
+          console.info(
+            `[${id}] Progress: ${(progress * 100).toFixed(4)}%${
+              Number.isNaN(secondsRemaining)
+                ? ''
+                : ` (ETA ${
+                    secondsRemaining / 60 > 1
+                      ? `${(secondsRemaining / 60).toFixed(1)} minutes`
+                      : `${secondsRemaining.toFixed(1)} seconds`
+                  })`
+            }`,
+          )
+        },
+      },
+    )
     res.status(200).contentType('audio/mpeg3').setHeader('Content-Disposition', 'inline')
     for await (const chunk of voiceIterator) {
       res.write(chunk)
