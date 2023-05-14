@@ -1,12 +1,24 @@
-import { getVoiceChunks } from 'iris-tts'
-import express, { Request } from 'express'
+import { ExecException, exec } from 'child_process'
 import cors from 'cors'
+import express, { Request } from 'express'
+import { getVoiceChunks } from 'iris-tts'
 
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
 const apiRouter = express.Router()
+let resetConnection = null as (() => Promise<{ error: ExecException | null; stderr: string; stdout: string }>) | null
+if (process.env.RESET_CONNECTION_CMD) {
+  resetConnection = async () => {
+    return new Promise((res, rej) => {
+      exec(process.env.RESET_CONNECTION_CMD!, (error, stdout, stderr) => {
+        if (error) rej({ error, stdout, stderr })
+        else res({ error: error ?? null, stdout, stderr })
+      })
+    })
+  }
+}
 
 apiRouter.all(
   '/tts',
@@ -34,6 +46,9 @@ apiRouter.all(
       (voice ?? 'es-ES-AlvaroNeural') as Parameters<typeof getVoiceChunks>[1],
       {
         throttling(ms) {
+          if (ms > 5000) {
+            resetConnection?.()
+          }
           console.info(`[${id}] Throttling (${ms}ms)`)
         },
         progress(progress, eta) {
