@@ -66,6 +66,7 @@ apiRouter.all(
           )
         },
       },
+      500,
     )
     res.status(200).contentType('audio/mpeg3').setHeader('Content-Disposition', 'inline')
     for await (const chunk of voiceIterator) {
